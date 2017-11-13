@@ -35,14 +35,27 @@ using namespace std;            // std namespace: so you can do things like 'cou
 ClassImp(AliAnalysisTaskMyTask) // classimp: necessary for root
 
 AliAnalysisTaskMyTask::AliAnalysisTaskMyTask() : AliAnalysisTaskSE(), 
-    fAOD(0), fOutputList(0), fHistPt(0)
+    // we initilize all private mem-vars pointing to 0, so it does not
+    // get randomly allocated
+    fAOD(0), fOutputList(0), fHistPt(0), fHistPrimVertx(0),
+    // Tracking tree
+    fTrackTree(0), fEta(0), fPhi(0), fPt(0), fTPCsignal(0), fITSsignal(0), fTOFsignal(0), fPdg(0),
+    fVx(0), fVy(0), fVz(0), fPrimVertx(0),
+    // emcal tree
+    fEMCalTree(0), fEMPos(0), fEMCalAmp(0),
+    // V0 tree
+    fV0Tree(0), fV0Pos(0), fV0Amp(0),
+    // FMD tree
+    fFMDTree(0), fFMDPos(0), fFMDAmp(0),
+    // AD tree
+    fADTree(0), fADPos(0), fADAmp(0),
 {
     // default constructor, don't allocate memory here!
     // this is used by root for IO purposes, it needs to remain empty
 }
 //_____________________________________________________________________________
 AliAnalysisTaskMyTask::AliAnalysisTaskMyTask(const char* name) : AliAnalysisTaskSE(name),
-    fAOD(0), fOutputList(0), fHistPt(0)
+    fAOD(0), fOutputList(0), fHistPt(0), fHistPrimVertx(0), fHistCentr(0), fHistIsInRange(0)
 {
     // constructor
     DefineInput(0, TChain::Class());    // define the input of the analysis: in this case we take a 'chain' of events
@@ -50,8 +63,17 @@ AliAnalysisTaskMyTask::AliAnalysisTaskMyTask(const char* name) : AliAnalysisTask
                                         // it does its work automatically
     DefineOutput(1, TList::Class());    // define the ouptut of the analysis: in this case it's a list of histograms 
                                         // you can add more output objects by calling DefineOutput(2, classname::Class())
-                                        // if you add more output objects, make sure to call PostData for all of them, and to
-                                        // make changes to your AddTask macro!
+                    
+    // tracking tree
+    DefineOutput(2, TTree::Class());    
+    // EMCal tree
+    DefineOutput(3, TTree::Class());    
+    // V0 tree
+    DefineOutput(4, TTree::Class());    
+    // FMD tree
+    DefineOutput(5, TTree::Class());    
+    // AD tree
+    DefineOutput(6, TTree::Class());    
 }
 //_____________________________________________________________________________
 AliAnalysisTaskMyTask::~AliAnalysisTaskMyTask()
@@ -75,17 +97,55 @@ void AliAnalysisTaskMyTask::UserCreateOutputObjects()
     fOutputList = new TList();          // this is a list which will contain all of your histograms
                                         // at the end of the analysis, the contents of this list are written
                                         // to the output file
-    fOutputList->SetOwner(kTRUE);       // memory stuff: the list is owner of all objects it contains and will delete them
+    fOutputList->SetOwner(kTRUE);       // memory stuff: the list is owner of all objects it contains and 
+                                        // will delete them
                                         // if requested (dont worry about this now)
 
-    // example of a histogram
-    fHistPt = new TH1F("fHistPt", "fHistPt", 100, 0, 10);       // create your histogra
-    fOutputList->Add(fHistPt);          // don't forget to add it to the list! the list will be written to file, so if you want
+    fHistPt  = new TH1F("fHistPt",  "fHistPt",  100,   0, 10);       
+    fHistEta = new TH1F("fHistEta", "fHistEta", 100, -15, 15);
+    fHistPrimVertx = new TH1F("fHistPrimVertx", "fHistPrimVertx", 100, -7, 7);
+    fOutputList->Add(fHistPt);          // don't forget to add it to the list! the list will be written to file, 
+                                        // so if you want
                                         // your histogram in the output file, add it to the list!
-    
+    fOutputList->Add(fHistEta);
+
+    fTrackTree = new TTree("particles", "particle tree");
+    fTrackTree->Branch("fEta",          &fEta);
+    fTrackTree->Branch("fPhi",          &fPhi);
+    fTrackTree->Branch("fPt",           &fPt);
+    fTrackTree->Branch("fTPCsignal",    &fTPCsignal);
+    fTrackTree->Branch("fITSsignal",    &fITSsignal);
+    fTrackTree->Branch("fTOFsignal",    &fTOFsignal);
+    fTrackTree->Branch("fPrimVertx",    &fPrimVertx);
+    fTrackTree->Branch("fVx",           &fVx);
+    fTrackTree->Branch("fVy",           &fVy);
+    fTrackTree->Branch("fVz",           &fVz);
+    // emcal tree
+    fEMCalTree = new TTree("emcalClusters", "EMCal cluster information");
+    fEMCalTree->Branch("fEMCalAmp",     &fEMCalAmp);
+    fEMCalTree->Branch("fEMPos",        &fEMpos);
+    // V0 tree
+    fV0Tree = new TTree("V0clusters", "V0 cluster information");
+    fV0Tree->Branch("fV0Amp",           &fV0Amp);
+    fV0Tree->Branch("fV0Pos",           &fV0pos);
+
+    fFMDTree = new TTree("FMDclusters", "FMD cluster information");
+    fFMDTree->Branch("fFMDAmp",         &fFMDAmp);
+    fFMDTree->Branch("fFMDPos",         &fFMDpos);
+    // AD tree
+    fADTree = new TTree("FMDclusters", "FMD cluster information");
+    fADTree->Branch("fADAmp",           &fADAmp);
+    fADTree->Branch("fADPos",           &fADpos);
+
     PostData(1, fOutputList);           // postdata will notify the analysis manager of changes / updates to the 
-                                        // fOutputList object. the manager will in the end take care of writing your output to file
+                                        // fOutputList object. the manager will in the end 
+                                        // take care of writing your output to file
                                         // so it needs to know what's in the output
+    PostData(2, fTrackTree);
+    PostData(3, fEMCalTree);
+    PostData(4, fV0Tree);
+    PostData(5, fFMDTree);
+    PostData(6, fADTree);
 }
 //_____________________________________________________________________________
 void AliAnalysisTaskMyTask::UserExec(Option_t *)
@@ -99,17 +159,48 @@ void AliAnalysisTaskMyTask::UserExec(Option_t *)
                                                         // there's another event format (ESD) which works in a similar wya
                                                         // but is more cpu/memory unfriendly. for now, we'll stick with aod's
     if(!fAOD) return;                                   // if the pointer to the event is empty (getting it failed) skip this event
-        // example part: i'll show how to loop over the tracks in an event 
-        // and extract some information from them which we'll store in a histogram
-    Int_t iTracks(fAOD->GetNumberOfTracks());           // see how many tracks there are in the event
-    for(Int_t i(0); i < iTracks; i++) {                 // loop ove rall these tracks
-        AliAODTrack* track = static_cast<AliAODTrack*>(fAOD->GetTrack(i));         // get a track (type AliAODTrack) from the event
-        if(!track || !track->TestFilterBit(1)) continue;                            // if we failed, skip this track
-        fHistPt->Fill(track->Pt());                     // plot the pt value of the track in a histogram
-    }                                                   // continue until all the tracks are processed
+    fHistPrimVertx->Fill( fAOD->GetPrimaryVertex()->GetZ() );
+    Int_t iTracks(fAOD->GetNumberOfTracks());           
+    for(Int_t i(0); i < iTracks; i++) {                 
+        AliAODTrack* track = static_cast<AliAODTrack*>(fAOD->GetTrack(i));  // get a track (type AliAODTrack) from the event
+        if(!track || !track->TestFilterBit(1)) continue; // if we failed, skip this track
+        fPt        = track->Pt();
+        fEta       = track->Eta();
+        fPhi       = track->Phi();
+        fPdg       = track->PDG();
+        fVx        = track->Xv();
+        fVy        = track->Yv();
+        fVz        = track->Zv();
+        fTPCsignal = track->GetTPCsignal();
+        fITSsignal = track->GetITSsignal();
+        fTOFsignal = track->GetTOFsignal();
+        fTRDsignal = track->GetTRDsignal();
+        fHMPsignal = track->GetHMPIDsignal();
+        fNbTracks  = iTracks;
+
+        fHistPt->Fill(fPt);
+        fTrackTree->Fill();
+    }                                                   
+    Int_t iCaloClusters(fAOD->GetNumberOfCaloClusters());
+    for(Int_t i(0); i < iCaloClusters; i++){
+        AliVCluster* cluster = static_cast<AliVCluster*>(fAOD->GetCaloCluster(i)); 
+        Int_t iCells(cluster->GetNumberOfCells());
+        for(Int_t j(0); j < iCells; j++){
+            fEMCalInfo = cluster->GetCellAmplitude(j);
+            fPos = cluster->GetCellPosition(j);
+            fEMCal_tree->Fill();
+        }
+    
+    }
+
     PostData(1, fOutputList);                           // stream the results the analysis of this event to
                                                         // the output manager which will take care of writing
                                                         // it to a file
+    PostData(2, fTrackTree);
+    PostData(3, fEMCalTree);
+    PostData(4, fV0Tree);
+    PostData(5, fFMDTree);
+    PostData(6, fADTree);
 }
 //_____________________________________________________________________________
 void AliAnalysisTaskMyTask::Terminate(Option_t *)
