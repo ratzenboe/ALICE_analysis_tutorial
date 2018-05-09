@@ -1,7 +1,7 @@
 #if !defined (__CINT__) || defined (__CLING__)
 #include "AliAnalysisAlien.h"
 #include "AliAnalysisManager.h"
-#include "AliAODInputHandler.h"
+#include "AliESDInputHandler.h"
 #include "AliAnalysisTaskMyTask.h"
 #endif
 
@@ -22,22 +22,20 @@ void runAnalysis()
 #endif
      
     // create the analysis manager
-    AliAnalysisManager *mgr = new AliAnalysisManager("AnalysisTaskExample");
-    AliAODInputHandler *aodH = new AliAODInputHandler();
-    mgr->SetInputEventHandler(aodH);
-
-
+    AliAnalysisManager *mgr = new AliAnalysisManager("AnalysisTaskMC");
+    AliESDInputHandler *esdH = new AliESDInputHandler();
+    mgr->SetInputEventHandler(esdH);
 
     // compile the class and load the add task macro
     // here we have to differentiate between using the just-in-time compiler
     // from root6, or the interpreter of root5
 #if !defined (__CINT__) || defined (__CLING__)
-    gInterpreter->LoadMacro("AliAnalysisTaskMyTask.cxx++g");
-    AliAnalysisTaskMyTask *task = reinterpret_cast<AliAnalysisTaskMyTask*>(gInterpreter->ExecuteMacro("AddMyTask.C"));
+    gInterpreter->LoadMacro("AliAnalysisTaskMCInfo.cxx++g");
+    AliAnalysisTaskMyTask *task = reinterpret_cast<AliAnalysisTaskMyTask*>(gInterpreter->ExecuteMacro("AddMCTask.C"));
 #else
-    gROOT->LoadMacro("AliAnalysisTaskMyTask.cxx++g");
-    gROOT->LoadMacro("AddMyTask.C");
-    AliAnalysisTaskMyTask *task = AddMyTask();
+    gROOT->LoadMacro("AliAnalysisTaskMCInfo.cxx++g");
+    gROOT->LoadMacro("AddMCTask.C");
+    AliAnalysisTaskMCInfo *task = AddMCTask();
 #endif
 
 
@@ -48,9 +46,9 @@ void runAnalysis()
 
     if(local) {
         // if you want to run locally, we need to define some input
-        TChain* chain = new TChain("aodTree");
+        TChain* chain = new TChain("esdTree");
         // add a few files to the chain (change this so that your local files are added)
-        chain->Add("AliAOD.root");
+        chain->Add("AliESD.root");
         // start the analysis locally, reading the events from the tchain
         mgr->StartAnalysis("local", chain);
     } else {

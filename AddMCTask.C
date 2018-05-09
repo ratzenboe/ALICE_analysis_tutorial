@@ -1,32 +1,33 @@
 
 #if !defined (__CINT__) || defined (__CLING__)
 #include "AliAnalysisManager.h"
-#include "AliAnalysisTaskMyTask.h"
+#include "AliAnalysisTaskMCInfo.h"
 #include <TString.h>
 #include <TList.h>
 #endif
 
 
 
-AliAnalysisTaskMyTask* AddMyTask(TString name = "name")
+AliAnalysisTaskMCInfo* AddMCTask(TString name = "name", 
+        Long_t state, UInt_t TTmask, UInt_t TTpattern)
 {
-    // get the manager via the static access member. since it's static, you don't need
-    // an instance of the class to call the function
+    // get the manager via the static access member. since it's static, there is no need
+    // for an instance of the class to call the function
     AliAnalysisManager *mgr = AliAnalysisManager::GetAnalysisManager();
     if (!mgr) {
         return 0x0;
     }
     // get the input event handler, again via a static method. 
     // this handler is part of the managing system and feeds events
-    // to your task
+    // to the task
     if (!mgr->GetInputEventHandler()) {
         return 0x0;
     }
     // by default, a file is open for writing. here, we get the filename
     TString fileName = AliAnalysisManager::GetCommonFileName();
-    fileName += ":MyTask";      // create a subfolder in the file
-    // now we create an instance of your task
-    AliAnalysisTaskMyTask* task = new AliAnalysisTaskMyTask(name.Data());   
+    fileName += ":MCTask";      // create a subfolder in the file
+    // now we create an instance of the MC task
+    AliAnalysisTaskMCInfo* task = new AliAnalysisTaskMCInfo(name.Data(),state,TTmask,TTpattern);   
     if(!task) return 0x0;
     task->SelectCollisionCandidates(AliVEvent::kAnyINT);
     // add your task to the manager
@@ -34,7 +35,7 @@ AliAnalysisTaskMyTask* AddMyTask(TString name = "name")
     // your task needs input: here we connect the manager to your task
     mgr->ConnectInput(task,0,mgr->GetCommonInputContainer());
     // same for the output
-    mgr->ConnectOutput(task,1,mgr->CreateContainer("MyOutputContainer", TList::Class(), AliAnalysisManager::kOutputContainer, fileName.Data()));
+    mgr->ConnectOutput(task,1,mgr->CreateContainer("MCOutputContainer", TList::Class(), AliAnalysisManager::kOutputContainer, fileName.Data()));
     // in the end, this macro returns a pointer to your task. this will be convenient later on
     // when you will run your analysis in an analysis train on grid
     return task;
